@@ -150,6 +150,7 @@ class UDXTransport implements Transport {
             0
           ),
           'RawDatagramSocket.bind($host)',
+          retryConfig: UDXRetryConfig.noRetry,
         );
         _logger.fine('[UDXTransport._performDial] RawDatagramSocket bound to: ${rawSocket!.address.address}:${rawSocket!.port}');
 
@@ -157,6 +158,7 @@ class UDXTransport implements Transport {
         multiplexer = await UDXExceptionHandler.handleUDXOperation(
           () async => UDXMultiplexer(rawSocket!, metricsObserver: metricsObserver),
           'UDXMultiplexer.create',
+          retryConfig: UDXRetryConfig.noRetry,
         );
         ownsMultiplexer = true;
         _logger.fine('[UDXTransport._performDial] UDXMultiplexer created');
@@ -166,6 +168,7 @@ class UDXTransport implements Transport {
       udpSocket = await UDXExceptionHandler.handleUDXOperation(
         () async => multiplexer!.createSocket(_udxInstance, host, port),
         'UDXMultiplexer.createSocket($host:$port)',
+        retryConfig: UDXRetryConfig.noRetry,
       );
       _logger.fine('[UDXTransport._performDial] UDPSocket created through multiplexer');
 
