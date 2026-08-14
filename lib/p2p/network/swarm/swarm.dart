@@ -29,6 +29,7 @@ import 'swarm_conn.dart';
 import 'swarm_stream.dart';
 import 'swarm_dial.dart'; // For AddrDialer and DelayDialRanker
 import 'address_filter.dart'; // For AddressFilter
+import 'dial_singleflight.dart';
 import 'package:dart_libp2p/p2p/host/basic/basic_host.dart'; // For OutboundCapabilityInfo
 
 /// Swarm is a Network implementation that manages connections to peers and
@@ -104,6 +105,9 @@ class Swarm implements Network {
   /// Lock for closed state
   final Lock _closedLock = Lock();
 
+  /// Coalesces concurrent dial operations with the same key.
+  final DialSingleflight<String, Conn> _dialSingleflight = DialSingleflight<String, Conn>();
+
   /// Next connection ID
   int _nextConnID = 0;
 
@@ -145,6 +149,7 @@ class Swarm implements Network {
     await _closedLock.synchronized(() async {
       if (_isClosed) return;
       _isClosed = true;
+      _dialSingleflight.close(Exception('Swarm is closed'));
 
 
       // Close all listeners
@@ -691,7 +696,24 @@ class Swarm implements Network {
   PeerId get localPeer => _localPeer;
 
   @override
-  Future<Conn> dialPeer(Context context, PeerId peerId) async {
+  Future<Conn> dialPeer(Context context, PeerId peerId) {
+    final forceDirect = context.getForceDirectDial().$1;
+    final forceFresh = context.getForceFreshDial().$1;
+    final intent = forceFresh
+        ? 'fresh'
+        : forceDirect
+            ? 'direct'
+            : 'normal';
+    final timeoutMicros = context.getDialPeerTimeout().inMicroseconds;
+    final key = '${peerId.toString()}|$intent|$timeoutMicros';
+
+    return _dialSingleflight.run(
+      key,
+      () => _dialPeerUncoalesced(context, peerId),
+    );
+  }
+
+  Future<Conn> _dialPeerUncoalesced(Context context, PeerId peerId) async {
     _logger.fine('Swarm.dialPeer: peer=${peerId.toBase58()}, existing_conns=${_connections.length}');
     
     // Check if we're closed
