@@ -230,6 +230,18 @@ void main() {
     });
 
     group('Protocol Compliance', () {
+      test('does not substitute private host addresses without observations', () {
+        final privateHostAddrs = [
+          MultiAddr('/ip4/192.168.76.116/udp/55824/udx'),
+          MultiAddr('/ip4/10.155.118.74/udp/55824/udx'),
+        ];
+
+        expect(
+          selectHolePunchResponseAddrs(const [], privateHostAddrs),
+          isEmpty,
+        );
+      });
+
       test('should use correct protocol ID', () {
         expect(protocolId, equals('/libp2p/dcutr'));
       });

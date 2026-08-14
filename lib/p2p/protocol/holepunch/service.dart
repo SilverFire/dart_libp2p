@@ -25,6 +25,16 @@ import '../../discovery/peer_info.dart';
 /// Logger for the holepunch service
 final _log = Logger('p2p-holepunch');
 
+/// Selects addresses for an inbound DCUtR CONNECT response.
+///
+/// [hostAddrs] is accepted to make the no-fallback contract explicit: unlike
+/// older Dart behavior, private or stale interface addresses must not replace
+/// an empty public/observed address set. This matches go-libp2p.
+List<MultiAddr> selectHolePunchResponseAddrs(
+  List<MultiAddr> publicAddrs,
+  List<MultiAddr> hostAddrs,
+) => List<MultiAddr>.of(publicAddrs);
+
 /// Options for the holepunch service
 class HolePunchOptions {
   /// Tracer for the holepunch service
@@ -196,19 +206,16 @@ class HolePunchServiceImpl implements HolePunchService {
       throw Exception('Received hole punch stream: ${str.conn.remoteMultiaddr}');
     }
 
-    var ownAddrs = _listenAddrs();
+    var ownAddrs = selectHolePunchResponseAddrs(_listenAddrs(), _host.addrs);
     if (_filter != null) {
       ownAddrs = _filter.filterLocal(str.conn.remotePeer, ownAddrs);
     }
 
-    // If we can't tell the peer where to dial us, try to use any available addresses
+    // A DCUtR response must contain public/observed addresses. Falling back to
+    // every host address advertises private or stale interfaces and starts
+    // simultaneous dials that cannot meet on the network.
     if (ownAddrs.isEmpty) {
-      _log.warning('No public addresses available for incoming hole punch, trying all available addresses. Peer: ${str.conn.remotePeer}');
-      // Try to use any addresses we have - the peer can decide if they're reachable
-      ownAddrs = _host.addrs.where((addr) => !isRelayAddress(addr)).toList();
-      if (ownAddrs.isEmpty) {
-        throw Exception('No addresses available for hole punch response');
-      }
+      throw Exception('No public addresses available for hole punch response');
     }
 
     await str.scope().reserveMemory(maxMsgSize, ReservationPriority.always);
