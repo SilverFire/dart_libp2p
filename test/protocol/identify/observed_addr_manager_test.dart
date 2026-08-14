@@ -38,6 +38,19 @@ void main() {
     expect(subject.addrs().map((a) => a.toString()), contains(observed));
   });
 
+  test('rejects a hairpin observation equal to the observer endpoint', () async {
+    final subject = manager(threshold: 1);
+    addTearDown(subject.close);
+    const coordinator = '/ip4/169.58.18.120/udp/4001/udx';
+
+    subject.recordFromMultiaddrs(
+      _TestConn(MultiAddr(local), MultiAddr(coordinator)),
+      MultiAddr(coordinator),
+    );
+
+    expect(subject.addrs(), isEmpty);
+  });
+
   test('retains the conservative four-observer default', () async {
     final subject = manager();
     addTearDown(subject.close);

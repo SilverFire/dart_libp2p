@@ -446,6 +446,22 @@ class ObservedAddrManager {
       return null;
     }
 
+    // A hairpin-NAT observer can report its own public endpoint as our
+    // source address. Advertising that value makes DCUtR punch the observer
+    // (often the relay/coordinator) instead of this host. Exact endpoint
+    // equality cannot identify two different peers, so discard it.
+    final remoteThinWaist = thinWaistForm(_normalize(conn.remoteMultiaddr));
+    final observedCandidate = thinWaistForm(_normalize(observed));
+    if (remoteThinWaist != null &&
+        observedCandidate != null &&
+        remoteThinWaist.tw.equals(observedCandidate.tw)) {
+      _log.fine(
+        'Ignoring observed address equal to observer endpoint: '
+        'observer=${conn.remoteMultiaddr}, observed=$observed',
+      );
+      return null;
+    }
+
     // we should only use ObservedAddr when our connection's LocalAddr is one
     // of our ListenAddrs. If we Dial out using an ephemeral addr, knowing that
     // address's external mapping is not very useful because the port will not be
