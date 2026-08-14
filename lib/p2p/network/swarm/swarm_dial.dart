@@ -323,8 +323,14 @@ class HappyEyeballsDialer {
         _logger.fine('Attempting ${scored.addr} (priority ${scored.priority})');
         
         try {
-          final conn = await _dialFunc(_context, scored.addr, _peerId)
-              .timeout(scored.timeout);
+          // Give the transport the attempt's complete timeout budget. A
+          // Future.timeout wrapper cannot cancel its source future and used
+          // to leave failed UDX hole punches retrying for minutes.
+          final conn = await _dialFunc(
+            _context.withDialPeerTimeout(scored.timeout),
+            scored.addr,
+            _peerId,
+          );
 
           if (!completer.isCompleted) {
             cancelled = true;  // Signal other attempts to stop

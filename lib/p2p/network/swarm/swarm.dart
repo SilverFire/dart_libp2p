@@ -1036,6 +1036,7 @@ class Swarm implements Network {
     // socket whose NAT mapping was already advertised to the peer.
     final transportConn = await transport.dial(
       dialAddr,
+      timeout: context.getDialPeerTimeout(),
       simultaneousConnect: context.getForceDirectDial().$1,
     );
     

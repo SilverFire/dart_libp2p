@@ -110,6 +110,13 @@ class UDXRetryConfig {
     maxDelay: Duration(seconds: 5),
     enableJitter: true,
   );
+
+  /// A single attempt for operations whose caller already owns the retry and
+  /// timeout budget (notably Swarm/Happy Eyeballs dials).
+  static const UDXRetryConfig noRetry = UDXRetryConfig(
+    maxRetries: 0,
+    enableJitter: false,
+  );
 }
 
 /// Centralized UDX exception handler with retry logic

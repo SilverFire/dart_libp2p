@@ -101,5 +101,22 @@ void main() {
       expect(config.backoffMultiplier, lessThan(regular.backoffMultiplier));
       expect(config.maxDelay, lessThan(regular.maxDelay));
     });
+
+    test('noRetry performs one bounded attempt', () async {
+      var attempts = 0;
+
+      await expectLater(
+        UDXExceptionHandler.handleUDXOperation<void>(
+          () async {
+            attempts++;
+            throw TimeoutException('dial budget exhausted');
+          },
+          'bounded-dial',
+          retryConfig: UDXRetryConfig.noRetry,
+        ),
+        throwsA(isA<UDXTimeoutException>()),
+      );
+      expect(attempts, 1);
+    });
   });
 }

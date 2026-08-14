@@ -200,6 +200,32 @@ void main() {
         throwsA(isA<Exception>()),
       );
     });
+
+    test('passes the scored timeout to the transport context', () async {
+      final peerId = PeerId.fromString('12D3KooWTest');
+      const attemptBudget = Duration(milliseconds: 75);
+      Duration? receivedBudget;
+
+      final dialer = HappyEyeballsDialer(
+        peerId: peerId,
+        addrs: [
+          ScoredAddress(
+            addr: MultiAddr('/ip4/1.2.3.4/udp/4001/udx'),
+            type: AddressType.directIPv4Public,
+            priority: 1,
+            timeout: attemptBudget,
+          ),
+        ],
+        dialFunc: (context, addr, peerId) async {
+          receivedBudget = context.getDialPeerTimeout();
+          throw TimeoutException('bounded transport attempt');
+        },
+        context: Context(),
+      );
+
+      await expectLater(dialer.dial(), throwsA(isA<Exception>()));
+      expect(receivedBudget, attemptBudget);
+    });
     
     test('throws exception when no addresses provided', () {
       final peerId = PeerId.fromString('12D3KooWTest');
@@ -223,4 +249,3 @@ void main() {
     });
   });
 }
-

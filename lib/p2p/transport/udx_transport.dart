@@ -90,11 +90,13 @@ class UDXTransport implements Transport {
 
     final effectiveTimeout = timeout ?? config.dialTimeout;
 
-    // Use UDX exception handler with retry logic for the entire dial operation
+    // Swarm/Happy Eyeballs owns dial retries and the total timeout budget.
+    // Retrying here multiplies that budget and leaves timed-out punch dials
+    // running in the background after Happy Eyeballs has moved on.
     return await UDXExceptionHandler.handleUDXOperation(
       () => _performDial(addr, host, port, effectiveTimeout, simultaneousConnect),
       'UDXTransport.dial($addr)',
-      retryConfig: UDXRetryConfig.regular,
+      retryConfig: UDXRetryConfig.noRetry,
     );
   }
 
@@ -193,6 +195,7 @@ class UDXTransport implements Transport {
           'UDXStream.createOutgoing($host:$port)',
         ),
         'UDXStream.createOutgoing($host:$port)',
+        retryConfig: UDXRetryConfig.noRetry,
       );
       _logger.fine('[UDXTransport._performDial] Outgoing UDXStream created: ${initialStream!.id}');
 
@@ -208,6 +211,7 @@ class UDXTransport implements Transport {
             'UDPSocket.handshakeComplete($host:$port)',
           ),
           'UDPSocket.handshakeComplete($host:$port)',
+          retryConfig: UDXRetryConfig.noRetry,
         );
         final handshakeDuration = DateTime.now().difference(handshakeStart);
         _logger.fine('[UDXTransport._performDial] Handshake completed for $host:$port, duration: ${handshakeDuration.inMilliseconds}ms');
